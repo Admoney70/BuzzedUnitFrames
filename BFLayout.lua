@@ -1030,6 +1030,70 @@ local SECURE_INIT = [[
     header:CallMethod("initialConfigFunction", self:GetName())
 ]]
 
+-- ── Classic fallback for SECURE_INIT ────────────────────────────
+-- Classic builds ship Blizzard_RestrictedAddOnEnvironment WITHOUT the
+-- untainted loadstring that RestrictedExecution.lua needs to compile an
+-- `initialConfigFunction` attribute string. The moment a
+-- SecureGroupHeader created its first child, the compile blew up with
+--   RestrictedExecution.lua:79: attempt to call a nil value
+-- (locals showed `loadstring_untainted = nil`), which unwound all the way
+-- out through header:Show() in ForceFramesCreation and left the layout
+-- half-built.
+--
+-- So on Classic we never hand the header the attribute string at all --
+-- with no `initialConfigFunction` attribute set, Blizzard's child-creation
+-- path skips the restricted compile entirely -- and do the same setup from
+-- plain Lua instead. Everything SECURE_INIT does is a SetAttribute, a
+-- Clique registration and a CallMethod: none of it is protected, and it
+-- all runs at header bring-up while the header is hidden and out of
+-- combat, so the insecure route is equivalent here.
+local function ConfigureChildInsecure(header, child)
+    if not child or child._bfInsecureConfigured then return end
+    child._bfInsecureConfigured = true
+
+    child:SetAttribute("*type1", "target")
+    child:SetAttribute("*type2", "togglemenu")
+    child:SetAttribute("useparent-toggleForVehicle", true)
+    child:SetAttribute("useparent-allowVehicleTarget", true)
+    child:SetAttribute("useparent-unitsuffix", true)
+    -- Same vehicle opt-out as the snippet: ATTRIBUTE_NOOP (empty string),
+    -- because a stored `false` falls through to the header's value.
+    child:SetAttribute("*toggleForVehicle2", "")
+
+    -- Clique's insecure registration path. The snippet's
+    -- clickcast_register RunAttribute is restricted-env only; adding the
+    -- button to ClickCastFrames is the documented Lua equivalent and
+    -- Clique picks it up on its next header sync.
+    if Clique and _G.ClickCastFrames then
+        _G.ClickCastFrames[child] = true
+    end
+
+    BuzzardHeader_InitialConfigFunction(header, child:GetName())
+end
+
+-- Sweep any children the header created that have not been through
+-- ConfigureChildInsecure yet. Cheap and idempotent -- the per-child flag
+-- makes re-runs no-ops -- so callers can fire it after any child-creating
+-- round trip without tracking which children are new.
+local function ConfigureNewChildrenInsecure(header)
+    if BF.canCompileSnippets then return end
+    -- A header can parent frames that are not unit buttons (anchors,
+    -- backgrounds). Only the template-spawned buttons get configured:
+    -- they are Buttons, and SecureGroupHeaderTemplate names them
+    -- "<headerName>UnitButtonN".
+    local prefix = header:GetName()
+    if not prefix then return end
+    for _, child in ipairs({ header:GetChildren() }) do
+        if not child._bfInsecureConfigured
+           and child.IsObjectType and child:IsObjectType("Button") then
+            local name = child:GetName()
+            if name and name:find(prefix, 1, true) == 1 then
+                ConfigureChildInsecure(header, child)
+            end
+        end
+    end
+end
+
 -- All attributes that Reset() must clear (Grid2's HeaderAttributes)
 -- IMPORTANT: "point", "xOffset", "yOffset" are intentionally NOT in this list.
 -- Grid2 never clears them in Reset(). They survive across header reuse so that
@@ -1075,7 +1139,12 @@ function BFHeaderClass:New(template)
     end
 
     frame.initialConfigFunction = BuzzardHeader_InitialConfigFunction
-    frame:SetAttribute("initialConfigFunction", SECURE_INIT)
+    -- Classic cannot compile the snippet (see ConfigureChildInsecure): leave
+    -- the attribute unset there so Blizzard skips the restricted compile,
+    -- and configure children from Lua after each creation pass instead.
+    if BF.canCompileSnippets then
+        frame:SetAttribute("initialConfigFunction", SECURE_INIT)
+    end
     frame:Reset()
     return frame
 end
@@ -1964,6 +2033,14 @@ function BF:ForceFramesCreation(header)
         -- ContainerFactory.lua: the v74 relevance-change sweep still hands
         -- newly-relevant SPARE rebuilds to it, and those are tiny.
     end
+    -- Classic only: children created above got no initialConfigFunction (the
+    -- attribute is unset there), so configure them from Lua now. Runs
+    -- unconditionally rather than inside the branch above so that a header
+    -- which grew children outside this pass still gets swept on the next
+    -- bring-up. Returns immediately on retail, where the secure snippet
+    -- already configured every child at creation time.
+    ConfigureNewChildrenInsecure(header)
+
     if hbT0 then
         self:LoadHBHeader(header, hbMade, debugprofilestop() - hbT0)
     end

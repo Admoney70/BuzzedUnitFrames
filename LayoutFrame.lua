@@ -159,9 +159,10 @@ function BF:ShouldShowPowerBar(unit, frame)
 
     -- Filtered mode — unit must match one of the enabled filters
     if unit == "player" and not IsInGroup() then
-        local spec = GetSpecialization()
+        -- Classic: no specializations -- filtered mode cannot match, so bail.
+        local spec = GetSpecialization and GetSpecialization()
         if not spec then return false end
-        if hp.showPowerBarHealers and GetSpecializationRole(spec) == "HEALER" then return true end
+        if hp.showPowerBarHealers and GetSpecializationRole and GetSpecializationRole(spec) == "HEALER" then return true end
         if hp.showPowerBarBloodDK then
             local _, className = UnitClass(unit)
             if className == "DEATHKNIGHT" and spec == 1 then return true end

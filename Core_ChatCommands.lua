@@ -656,7 +656,7 @@ function BF:OnChatCommand(input)
                 tostring(self.GetOUFPlayerHealthBandHeight and self:GetOUFPlayerHealthBandHeight()),
                 tostring(self.GetOUFPlayerHealthDrawnHeight and self:GetOUFPlayerHealthDrawnHeight()),
                 tostring(self.GetPowerBarEffectiveHeight and self:GetPowerBarEffectiveHeight()),
-                tostring(GetSpecialization()), S(UnitPowerType("player")),
+                tostring(GetSpecialization and GetSpecialization()), S(UnitPowerType("player")),
                 tostring(select(2, UnitClass("player")))))
     elseif input:match("^pingtest") then
         local unit, typ = input:match("^pingtest%s+(%S+)%s*(%S*)")

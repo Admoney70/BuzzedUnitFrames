@@ -47,8 +47,12 @@ local UnitInVehicle           = UnitInVehicle
 local UnitPhaseReason         = UnitPhaseReason
 local GetRaidTargetIndex      = GetRaidTargetIndex
 local GetReadyCheckStatus     = GetReadyCheckStatus
-local GetSpecialization       = GetSpecialization
-local GetSpecializationRole   = GetSpecializationRole
+-- Classic has no talent specializations; these globals are absent there.
+-- Stubbing to a nil-returning function keeps every call site below working
+-- (they all already treat a nil spec as "unknown") instead of erroring.
+local function _noSpec() return nil end
+local GetSpecialization       = GetSpecialization     or _noSpec
+local GetSpecializationRole   = GetSpecializationRole or _noSpec
 local UnitGetTotalAbsorbs     = UnitGetTotalAbsorbs
 local UnitGetTotalHealAbsorbs = UnitGetTotalHealAbsorbs
 

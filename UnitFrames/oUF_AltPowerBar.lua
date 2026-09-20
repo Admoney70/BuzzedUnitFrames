@@ -190,7 +190,7 @@ function BF:IsAltPowerBarEligible()
     if p.altPowerBarDetached then return false end
     local _, playerClass = UnitClass("player")
     if playerClass ~= "DRUID" then return false end
-    local specIdx = GetSpecialization()
+    local specIdx = GetSpecialization and GetSpecialization()
     local specKey = specIdx and DRUID_SPEC_KEYS[specIdx]
     local druidSpecs = p.altPowerBarDruidSpecs
     return (specKey and druidSpecs and druidSpecs[specKey]) and true or false
@@ -745,7 +745,7 @@ function BF:UpdateOUFAltPowerBar()
     local altActive = false
     local _, playerClass = UnitClass("player")
     if playerClass == "DRUID" and UnitPowerType("player") ~= 0 then
-        local specIdx = GetSpecialization()
+        local specIdx = GetSpecialization and GetSpecialization()
         -- PERF: file-local DRUID_SPEC_KEYS (defined above) — the inline table
         -- literal here allocated 20-40 tables/sec while in form.
         local specKey = specIdx and DRUID_SPEC_KEYS[specIdx]

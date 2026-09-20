@@ -34,6 +34,26 @@ local BF = LibStub("AceAddon-3.0"):NewAddon(addonName,
 )
 _G["BuzzardFrames"] = BF
 
+-- ── Client flavor / capability detection ────────────────────────
+-- Set before anything else so every later file can branch on it.
+--
+-- BF.isRetail            true on Mainline (the addon's primary target).
+-- BF.canCompileSnippets  true when the restricted environment can compile
+--                        an `initialConfigFunction` attribute STRING into a
+--                        secure snippet. On Classic builds that ship
+--                        Blizzard_RestrictedAddOnEnvironment without an
+--                        untainted loadstring, RestrictedExecution.lua
+--                        errors with "attempt to call a nil value" the
+--                        moment a SecureGroupHeader creates its first
+--                        child. BFLayout.lua uses the Lua-side child
+--                        configuration path instead when this is false.
+-- BF.hasSpecializations  true when GetSpecialization/GetSpecializationInfo
+--                        exist (absent on Classic Era -- no talent specs).
+BF.isRetail = (not WOW_PROJECT_ID) or (WOW_PROJECT_ID == (WOW_PROJECT_MAINLINE or -1))
+BF.canCompileSnippets = BF.isRetail
+BF.hasSpecializations = (type(_G.GetSpecialization) == "function")
+    and (type(_G.GetSpecializationInfo) == "function")
+
 -- No-op stubs for the §L5 load/switch harness. LoadTiming.lua (the very
 -- next file in the .toc) replaces every one of them with the real
 -- collector. They exist so that the ~90 mark call sites scattered through

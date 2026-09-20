@@ -81,6 +81,8 @@ local function PartialCapable(numericType)
     if numericType == ESSENCE_TYPE then
         return true
     elseif numericType == SHARD_TYPE then
+        -- Classic: C_SpecializationInfo is absent; no Destruction spec to match.
+        if not (C_SpecializationInfo and C_SpecializationInfo.GetSpecialization) then return false end
         return C_SpecializationInfo.GetSpecialization() == SPEC_WARLOCK_DESTRUCTION
     end
     return false

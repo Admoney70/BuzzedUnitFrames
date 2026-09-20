@@ -3091,7 +3091,14 @@ end
 BF.RebuildMissingRaidBuffCaches = RebuildMissingRaidBuffCaches  -- exposed for talent handler
 
 function BF:OnPlayerSpecChanged()
-    local specIndex = GetSpecialization()
+    -- Classic has no talent specializations: GetSpecialization and
+    -- GetSpecializationInfo are both absent, and calling them raised
+    -- "attempt to call a nil value" straight out of EnableAddon. Leave the
+    -- spec fields nil there -- every consumer already handles that, since
+    -- it is also the retail state before the first PLAYER_SPECIALIZATION_
+    -- CHANGED -- and still run the cache rebuilds below, which are what the
+    -- rest of this function is actually for.
+    local specIndex = self.hasSpecializations and GetSpecialization() or nil
     if specIndex then
         local id, _, _, _, role = GetSpecializationInfo(specIndex)
         self.playerSpecID   = id
