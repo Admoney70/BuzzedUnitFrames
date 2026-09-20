@@ -1,0 +1,196 @@
+## Interface: 120100
+## Title: |cff11ace9Buzzard Frames|r
+## Notes: Blizzard-style Party, Raid and Unit Frames
+## Author: Serina
+## Version: 5.3.1
+## SavedVariables: BuzzardFramesDB, BuzzardFramesUnitFramesDB, BuzzardFramesAuraCustomizationsDB, BuzzardFramesCustomFrameGroupsDB, BuzzardFramesRaidPartyFramesDB, BuzzardFramesIncomingCastsDB, BuzzardFramesMenuModeDB
+## X-oUF: BuzzardFrames_oUF
+## X-Curse-Project-ID: 1461828
+# BuzzardFramesOptions is THE options panel, shipped alongside this addon
+# and LOADED ON DEMAND the first time it is opened -- see BF:OpenOptions in
+# Core_OptionsBridge.lua.
+## OptionalDeps: Clique, MiniCC, FrameSort, BuzzardFramesOptions
+## IconTexture: Interface\AddOns\BuzzardFrames\Media\buzzardRes
+## AddonCompartmentFunc: BuzzardFrames_AddonCompartmentFunc
+## AddonCompartmentFuncOnEnter: BuzzardFrames_AddonCompartmentFuncOnEnter
+## AddonCompartmentFuncOnLeave: BuzzardFrames_AddonCompartmentFuncOnLeave
+
+# Libraries
+Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.xml
+Libs\AceAddon-3.0\AceAddon-3.0.xml
+Libs\AceEvent-3.0\AceEvent-3.0.xml
+Libs\AceDB-3.0\AceDB-3.0.xml
+Libs\AceConsole-3.0\AceConsole-3.0.xml
+Libs\LibSharedMedia-3.0\lib.xml
+Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
+Libs\LibDBIcon-1.0\LibDBIcon-1.0.lua
+Libs\AceSerializer-3.0\AceSerializer-3.0.xml
+Libs\LibCompress\lib.xml
+Libs\LibDeflate\LibDeflate.lua
+Libs\oUF\oUF.xml
+
+# Salvaged oUF elements -- BuzzardFrames-owned, kept OUT of Libs/oUF so the
+# vendored library stays a pristine upstream copy. Both were removed upstream
+# but are still wired by our unit frames. They register through oUF's public
+# extension API, so they must load AFTER oUF.xml (which creates ns.oUF) and
+# BEFORE the first frame is spawned in UnitFrames\oUF_Player.lua.
+UnitFrames\oUFElements\healthprediction.lua
+UnitFrames\oUFElements\pingindicator.lua
+
+# Core files
+Defaults.lua
+# Load-time harness (perf plan §L5). Must be the FIRST file after
+# Defaults.lua: it needs BF to exist, but has to be able to stamp a mark
+# before any other chunk runs. Adopts the origin table stamped at the top
+# of Defaults.lua. Registers /bf loadreport (dispatched from
+# Core_ChatCommands.lua).
+LoadTiming.lua
+Defaults_RaidPartyFrames.lua
+UnitFrames\Defaults_UnitFrames.lua
+AuraCustomizations\Defaults_AuraCustomizations.lua
+CustomFrameGroups\Defaults_CustomFrameGroups.lua
+IncomingCasts\Defaults_IncomingCasts.lua
+Core.lua
+# P-1 chokepoint: the ONLY file that talks to the options panel
+# implementation. Must load after Core.lua (needs the BF object) and
+# before anything that calls BF:RefreshPanel / BF:IsOptionsShown /
+# BF:ShowTextWindow -- all of which are runtime calls, so position
+# here is about clarity, not necessity.
+Core_OptionsBridge.lua
+# Shared event subscription layer (event refactor stage 0). Must load after
+# Core.lua (needs the BF object) and before every consumer -- statuses,
+# indicators and unit frames all come later. Gives each module its own
+# AceEvent owner, so two modules can hold the same event without the
+# (object, event) collision that produced 27 hand-rolled event frames, and
+# makes the unit scope a required, engine-enforced argument.
+BFEvents.lua
+Core_ProfileAPI.lua
+Core_FlatDefaults.lua
+Core_Migrations.lua
+Core_DB.lua
+Core_ProfileLifecycle.lua
+Core_UFLayout.lua
+Core_Refresh.lua
+Core_UI.lua
+Core_ChatCommands.lua
+ProfileExport.lua
+# One-time account-wide notifications. Must be after Core_DB, which
+# captures BF._freshInstall that the new-user suppression depends on.
+Core_Notifications.lua
+
+# Curated buff list (Buffs > Buff List "Spell Name or ID" suggestions).
+# SpellData_Buffs.lua builds ns.SpellData; SpellSuggest.lua exposes the
+# same rows as a plain function on the addon table for the options addon,
+# which cannot see this addon's private table. Data file first.
+SpellSearch\SpellData_Buffs.lua
+SpellSearch\SpellSuggest.lua
+
+# Preview frame engine (the dummy frames the options panel paints its
+# settings onto). Data (ApplyPreview* painters) before System (frame pool,
+# layout, lifecycle), which imports from it at file scope.
+Preview\PreviewData.lua
+Preview\PreviewSystem.lua
+PixelPerfect.lua
+LayoutFrame.lua
+BlizzardFrames.lua
+SetupMode.lua
+SetupModePetFrames.lua
+UnlockMode.lua
+CustomFrameGroups\SetupModeCustomFrames.lua
+BFIndicator.lua
+BFStatus.lua
+Statuses\SingleAuraTrackers.lua
+Statuses\Auras.lua
+Statuses\DispelCooldown.lua
+Statuses\Offline.lua
+Statuses\Level.lua
+BFLayout.lua
+Auras\Auras.lua
+Auras\AuraConfig.lua
+Auras\AuraTooltip.lua
+Auras\ContainerFactory.lua
+Auras\RenderContainerIcons.lua
+Auras\AuraGroupHelpers.lua
+Auras\RenderAuraGroup.lua
+Auras\DummyAuras.lua
+Indicators\Container.lua
+Indicators\HealthBar.lua
+Indicators\PowerBar.lua
+Indicators\CastBar.lua
+Indicators\AbsorbBars.lua
+Indicators\NameText.lua
+Indicators\HealthText.lua
+Indicators\LevelText.lua
+Indicators\ReducedMaxHealthText.lua
+Indicators\StatusText_Overlay.lua
+Indicators\RoleIcon.lua
+Indicators\RaidTargetIcon.lua
+Indicators\PingIndicator.lua
+Indicators\LeaderIcon.lua
+Indicators\StatusIcons.lua
+Indicators\VehicleText.lua
+Indicators\AggroHighlight.lua
+Indicators\DispelDebuffBorder.lua
+Indicators\BuffsAndContainers.lua
+Indicators\DispelDebuffOverlay.lua
+Indicators\BuffOverlay.lua
+Indicators\TargetHighlight.lua
+Indicators\MouseoverHighlight.lua
+Indicators\DispelDebuffIndicator.lua
+Indicators\RangeAlpha.lua
+Indicators\Tooltip.lua
+Indicators\BigDefIcons.lua
+Indicators\DebuffIcons.lua
+Indicators\MissingRaidBuff.lua
+
+# v96: the shared ping-pin mirror. Module-neutral by design -- it drives BOTH
+# the raid/party pins (Indicators\PingIndicator.lua) and the oUF unit-frame
+# pins (UnitFrames\oUF_Shared.lua), so it must not live in either module's
+# files. Needs only the BF object at load; every consumer calls it at runtime.
+PingMirror.lua
+
+ApplyProfile.lua
+Initialization.lua
+IncomingCasts\IncomingCasts.lua
+AuraCustomizations\TrackedAuras.lua
+AuraCustomizations\AuraCustomizations.lua
+AuraCustomizations\AuraCustomizationHelpers.lua
+AuraCustomizations\PreviewIconEffects.lua
+# Theme engine (BF.THEMES, snapshot, apply, the apply popup). The options
+# panel's Profiles > Themes page drives it.
+Themes.lua
+# Single-buff / curated-spell helpers shared by the runtime and the options
+# panel. Reads BF.SPEC_SPELLS at file scope, so AFTER TrackedAuras.lua.
+AuraCustomizations\SingleBuffAPI.lua
+CustomFrameGroups\CustomFrames.lua
+Auras\PrivateAuraDispelOverlay.lua
+Range.lua
+UnitFrames\SetupMode_UnitFrames.lua
+UnitFrames\oUF_Shared.lua
+UnitFrames\oUF_DragonOverlay.lua
+UnitFrames\oUF_Absorbs.lua
+UnitFrames\oUF_Castbar.lua
+UnitFrames\oUF_Player.lua
+UnitFrames\oUF_ResourceBar.lua
+UnitFrames\oUF_PowerBar.lua
+UnitFrames\oUF_AltPowerBar.lua
+UnitFrames\oUF_Target.lua
+UnitFrames\oUF_Focus.lua
+UnitFrames\oUF_TargetOfTarget.lua
+UnitFrames\oUF_FocusTarget.lua
+UnitFrames\oUF_Pet.lua
+UnitFrames\oUF_BossFrames.lua
+# Raid-style twins for player/target/focus/boss. AFTER the oUF frames (it reads BF.oufPlayer/oufTarget/oufFocus/oufBoss at runtime).
+UnitFrames\Twins.lua
+# Boss frame preview (options panel > Boss Frames > Preview). AFTER
+# oUF_BossFrames.lua and Twins.lua: it hooks ApplyOUFBossFrameLayout and
+# reads IsTwinActive / GetTwinScale at runtime.
+UnitFrames\oUF_BossPreview.lua
+FrameSortIntegration.lua
+Profiler.lua
+
+# Runtime switch for the right-click unit menu path (/bfmenu). Loads last: it
+# hooks BF:RegisterFrame and touches the oUF frames by name, so everything it
+# reaches must already exist. Diagnostic/experimental -- see the header comment.
+MenuModes.lua
