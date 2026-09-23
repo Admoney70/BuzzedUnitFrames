@@ -1075,8 +1075,26 @@ end
 -- ConfigureChildInsecure yet. Cheap and idempotent -- the per-child flag
 -- makes re-runs no-ops -- so callers can fire it after any child-creating
 -- round trip without tracking which children are new.
+-- Can the restricted environment compile a snippet string? Probed once
+-- rather than inferred from WOW_PROJECT_ID: a Classic client reporting
+-- itself as mainline still lacked loadstring_untainted and kept crashing.
+-- The probe compiles a trivial snippet through the same RestrictedExecution
+-- path the header uses; pcall catches the "attempt to call a nil value" so
+-- nothing reaches the error frame. Runs at header bring-up, out of combat.
+function BF:CanCompileSnippets()
+    if self.canCompileSnippets ~= nil then return self.canCompileSnippets end
+    local ok = false
+    if SecureHandlerExecute then
+        local probe = CreateFrame("Frame", nil, UIParent, "SecureHandlerBaseTemplate")
+        ok = pcall(SecureHandlerExecute, probe, "local x = 1")
+        probe:Hide()
+    end
+    self.canCompileSnippets = ok and true or false
+    return self.canCompileSnippets
+end
+
 local function ConfigureNewChildrenInsecure(header)
-    if BF.canCompileSnippets then return end
+    if BF:CanCompileSnippets() then return end
     -- A header can parent frames that are not unit buttons (anchors,
     -- backgrounds). Only the template-spawned buttons get configured:
     -- they are Buttons, and SecureGroupHeaderTemplate names them
@@ -1142,7 +1160,7 @@ function BFHeaderClass:New(template)
     -- Classic cannot compile the snippet (see ConfigureChildInsecure): leave
     -- the attribute unset there so Blizzard skips the restricted compile,
     -- and configure children from Lua after each creation pass instead.
-    if BF.canCompileSnippets then
+    if BF:CanCompileSnippets() then
         frame:SetAttribute("initialConfigFunction", SECURE_INIT)
     end
     frame:Reset()
