@@ -1075,21 +1075,19 @@ end
 -- ConfigureChildInsecure yet. Cheap and idempotent -- the per-child flag
 -- makes re-runs no-ops -- so callers can fire it after any child-creating
 -- round trip without tracking which children are new.
--- Can the restricted environment compile a snippet string? Probed once
--- rather than inferred from WOW_PROJECT_ID: a Classic client reporting
--- itself as mainline still lacked loadstring_untainted and kept crashing.
--- The probe compiles a trivial snippet through the same RestrictedExecution
--- path the header uses; pcall catches the "attempt to call a nil value" so
--- nothing reaches the error frame. Runs at header bring-up, out of combat.
+-- Can the restricted environment compile a snippet string?
+-- RestrictedExecution.lua compiles every snippet through the global
+-- loadstring_untainted; when that is nil (seen on Classic, and the error
+-- locals name it directly) every compile dies with "attempt to call a nil
+-- value". Check the global instead of test-compiling: a test compile runs
+-- inside a secure attribute handler, which reports its error straight to
+-- the error frame, so pcall can't catch it and it returns true anyway.
+-- If this is wrongly false somewhere, the fallback is the Lua config
+-- path, which still works, so erring toward false is the safe side.
 function BF:CanCompileSnippets()
-    if self.canCompileSnippets ~= nil then return self.canCompileSnippets end
-    local ok = false
-    if SecureHandlerExecute then
-        local probe = CreateFrame("Frame", nil, UIParent, "SecureHandlerBaseTemplate")
-        ok = pcall(SecureHandlerExecute, probe, "local x = 1")
-        probe:Hide()
+    if self.canCompileSnippets == nil then
+        self.canCompileSnippets = type(_G.loadstring_untainted) == "function"
     end
-    self.canCompileSnippets = ok and true or false
     return self.canCompileSnippets
 end
 
