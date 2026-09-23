@@ -903,7 +903,11 @@ function BF:RegisterFrame(frame)
 end
 
 local function BuzzardHeader_InitialConfigFunction(headerFrame, frameName)
-	BF:RegisterFrame(_G[frameName])
+	local frame = _G[frameName]
+	-- Evidence for BF:CanCompileSnippets(): only the secure snippet (or the
+	-- Lua fallback, which sets its own flag) ever reaches here.
+	if frame then frame._bfConfigured = true end
+	BF:RegisterFrame(frame)
 end
 
 -- Grid2: CreateIndicators on all registered frames
@@ -1048,7 +1052,7 @@ local SECURE_INIT = [[
 -- all runs at header bring-up while the header is hidden and out of
 -- combat, so the insecure route is equivalent here.
 local function ConfigureChildInsecure(header, child)
-    if not child or child._bfInsecureConfigured then return end
+    if not child or child._bfInsecureConfigured or child._bfConfigured then return end
     child._bfInsecureConfigured = true
 
     child:SetAttribute("*type1", "target")
@@ -1076,17 +1080,21 @@ end
 -- makes re-runs no-ops -- so callers can fire it after any child-creating
 -- round trip without tracking which children are new.
 -- Can the restricted environment compile a snippet string?
--- RestrictedExecution.lua compiles every snippet through the global
--- loadstring_untainted; when that is nil (seen on Classic, and the error
--- locals name it directly) every compile dies with "attempt to call a nil
--- value". Check the global instead of test-compiling: a test compile runs
--- inside a secure attribute handler, which reports its error straight to
--- the error frame, so pcall can't catch it and it returns true anyway.
--- If this is wrongly false somewhere, the fallback is the Lua config
--- path, which still works, so erring toward false is the safe side.
+-- Nothing addon code can inspect answers this reliably: on the reporting
+-- Classic client the global loadstring_untainted existed, yet
+-- RestrictedExecution.lua's captured copy was nil, and any test compile
+-- reports its failure straight to the error frame (pcall can't catch it,
+-- because it runs inside a secure attribute handler).
+--
+-- So: start from the client's interface version (Classic clients are
+-- below 100000), then trust evidence. ForceFramesCreation checks whether
+-- the snippet actually configured the children it just built; if any are
+-- missing, snippets are broken here, this flips to false, and every
+-- header is switched to the Lua path (see DisableSecureInit).
 function BF:CanCompileSnippets()
     if self.canCompileSnippets == nil then
-        self.canCompileSnippets = type(_G.loadstring_untainted) == "function"
+        local toc = select(4, GetBuildInfo()) or 0
+        self.canCompileSnippets = toc >= 100000
     end
     return self.canCompileSnippets
 end
@@ -1107,6 +1115,17 @@ local function ConfigureNewChildrenInsecure(header)
                 ConfigureChildInsecure(header, child)
             end
         end
+    end
+end
+
+-- Snippets turned out not to compile on this client: stop every existing
+-- header from trying again. With the attribute cleared, Blizzard's child
+-- creation skips the restricted compile, so no further errors are raised.
+local function DisableSecureInit()
+    BF.canCompileSnippets = false
+    for i = 1, NUM_HEADERS do
+        local h = _G["BFLayoutHeader" .. i]
+        if h then h:SetAttribute("initialConfigFunction", nil) end
     end
 end
 
@@ -2055,6 +2074,19 @@ function BF:ForceFramesCreation(header)
     -- which grew children outside this pass still gets swept on the next
     -- bring-up. Returns immediately on retail, where the secure snippet
     -- already configured every child at creation time.
+    -- Evidence check: if the secure snippet was supposed to configure the
+    -- children but any unit button came out unconfigured, snippets don't
+    -- compile on this client. Fall back to the Lua path for good.
+    if BF.canCompileSnippets then
+        local prefix = header:GetName()
+        for _, child in ipairs({ header:GetChildren() }) do
+            local name = child.IsObjectType and child:IsObjectType("Button") and child:GetName()
+            if name and prefix and name:find(prefix, 1, true) == 1 and not child._bfConfigured then
+                DisableSecureInit()
+                break
+            end
+        end
+    end
     ConfigureNewChildrenInsecure(header)
 
     if hbT0 then
